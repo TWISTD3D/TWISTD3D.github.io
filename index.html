@@ -1,18 +1,4 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>snow</title>
-<link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@300;400;500;600;700&family=Syne:wght@400;500;600;700;800&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300;1,400&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jsmediatags/3.9.5/jsmediatags.min.js"></script>
 <script type="module">
-// ── FIREBASE REALTIME DATABASE ──
-// SETUP (one-time, 5 min):
-// 1. Go to https://console.firebase.google.com → Create project
-// 2. Click "Add app" (web </>) → register app → copy firebaseConfig values below
-// 3. Left sidebar: Build → Realtime Database → Create database → Start in TEST MODE
-// 4. Replace every REPLACE_* below with your real values and redeploy
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import { getDatabase, ref, set, onValue } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
 
@@ -26,36 +12,46 @@ const firebaseConfig = {
   appId:             "1:860267587022:web:83c5629f49a58789d1379f"
 };
 
+let db, profileRef;
+
 try {
   const app = initializeApp(firebaseConfig);
-  const db  = getDatabase(app);
-  const profileRef = ref(db, 'profile');
+  db  = getDatabase(app);
+  profileRef = ref(db, 'profile');
 
-  // Save profile data to Firebase (owner only, called on settings save)
+  // SAVE TO FIREBASE
   window._fbSet = (data) => set(profileRef, data);
 
-  // Real-time listener — fires immediately on load with current DB value,
-  // then again whenever the owner saves. ALL visitors get updates live.
-  // Uses a queue in case applyProfileData isn't defined yet (module vs script timing)
+  // QUEUE FOR WHEN applyProfileData ISN'T READY
   window._fbPending = null;
+
+  // LISTEN FOR CHANGES
   onValue(profileRef, (snap) => {
     const d = snap.exists() ? snap.val() : null;
-    if(!d) return;
-    if(window.applyProfileData){
+    if (!d) return;
+
+    if (window.applyProfileData) {
       window.applyProfileData(d);
     } else {
-      // Script hasn't defined applyProfileData yet — queue it
       window._fbPending = d;
     }
-  }, (err) => {
-    console.warn('Firebase read error:', err);
   });
 
-  window._fbReady = true;
-  console.log('Firebase connected ✓');
-} catch(e) {
-  console.warn('Firebase init failed — using local storage only:', e);
+  console.log("Firebase connected ✓");
+
+} catch (e) {
+  console.warn("Firebase init failed — using local storage only:", e);
 }
+
+// APPLY PENDING DATA ON PAGE LOAD
+window.addEventListener("DOMContentLoaded", () => {
+  if (window._fbPending) {
+    window.applyProfileData(window._fbPending);
+    window._fbPending = null;
+  }
+});
+</script>
+
 </script>
 <style>
   :root {
