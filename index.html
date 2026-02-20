@@ -36,10 +36,16 @@ try {
 
   // Real-time listener — fires immediately on load with current DB value,
   // then again whenever the owner saves. ALL visitors get updates live.
+  // Uses a queue in case applyProfileData isn't defined yet (module vs script timing)
+  window._fbPending = null;
   onValue(profileRef, (snap) => {
     const d = snap.exists() ? snap.val() : null;
-    if (d && window.applyProfileData) {
+    if(!d) return;
+    if(window.applyProfileData){
       window.applyProfileData(d);
+    } else {
+      // Script hasn't defined applyProfileData yet — queue it
+      window._fbPending = d;
     }
   }, (err) => {
     console.warn('Firebase read error:', err);
@@ -1226,7 +1232,7 @@ function setAvatar(e){
       const m=document.getElementById('pfp-mini-img');m.src=url;m.style.display='block';
       document.getElementById('pfp-mini-txt').style.display='none';
       storedAvatarDataUrl=url;
-      saveToStorage();toast('profile picture updated');
+      savePfpToIDB();saveToStorage();toast('profile picture updated');
     };img.src=ev.target.result;
   };reader.readAsDataURL(f);
 }
@@ -1527,8 +1533,6 @@ async function saveToStorage(){
 }
 
 async function saveSongsToIDB(){
-  // Saves full songs array (with b64 audio) to IDB songs store
-  // Each song gets its own record — no size limits, all or nothing atomically
   try {
     await idbClear('songs');
     for(const s of songs){
@@ -1541,6 +1545,31 @@ async function saveSongsToIDB(){
       });
     }
   } catch(e) { console.error('saveSongs failed',e); }
+}
+
+async function savePfpToIDB(){
+  // PFP is too large for Firebase — store in IndexedDB so it survives reloads
+  try{
+    const src = storedAvatarDataUrl || '';
+    if(src && src.startsWith('data:')) await storageSave('profile_pfp', src);
+  }catch(e){}
+}
+
+async function loadPfpFromIDB(){
+  try{
+    const src = await storageLoad('profile_pfp');
+    if(src && src.length > 50){
+      const i = document.getElementById('avatar-img-el');
+      i.src = src; i.style.display = 'block';
+      document.getElementById('avatar-fallback').style.display = 'none';
+      storedAvatarDataUrl = src;
+      // Also update settings preview
+      const m = document.getElementById('pfp-mini-img');
+      if(m){ m.src=src; m.style.display='block'; }
+      const mt = document.getElementById('pfp-mini-txt');
+      if(mt) mt.style.display='none';
+    }
+  }catch(e){}
 }
 window.applyProfileData = function applyProfileData(d){
   if(!d) return;
@@ -1568,6 +1597,8 @@ window.applyProfileData = function applyProfileData(d){
     });
   }
 }
+// Flush any Firebase data that arrived before this function was defined
+if(window._fbPending){ window.applyProfileData(window._fbPending); window._fbPending=null; }
 async function loadFromStorage(){
   // Firebase onValue (in the module script above) handles live global data for all visitors.
   // This function just loads the local fallback so the page isn't blank
@@ -1618,9 +1649,11 @@ function connectLanyard(){
 try { applyPalette([[80,180,255],[56,212,255],[144,220,255]]); } catch(e) {}
 try { renderSelector(); } catch(e) {}
 (async()=>{
-  // Load local fallback first (instant, no network wait)
+  // 1. Load local meta fallback instantly (no network)
   try { await loadFromStorage(); } catch(e) {}
-  // Load songs from owner's IndexedDB (private — not shared via Firebase, too large)
+  // 2. Load PFP from IDB (too big for Firebase, stored locally)
+  try { await loadPfpFromIDB(); } catch(e) {}
+  // 3. Load songs from IDB
   try {
     const saved = await idbGetAll('songs');
     if(saved && saved.length){
@@ -1629,8 +1662,7 @@ try { renderSelector(); } catch(e) {}
       loadTrack(0);
     }
   } catch(e) {}
-  // Firebase onValue fires automatically and overwrites local data with global settings
-  // views counter stays local
+  // 4. Firebase onValue (in module script) fires and overwrites meta with global settings
   try { views++; document.getElementById('view-num').textContent = views.toLocaleString(); } catch(e) {}
 })();
 try { fetch(`https://api.lanyard.rest/v1/users/${DISCORD_ID}`).then(r=>r.json()).then(j=>{if(j.success&&j.data)applyPresence(j.data)}).catch(()=>{}); } catch(e) {}
