@@ -718,6 +718,7 @@ let tiltX=0,tiltY=0,floatA=0;
 // ── STATE ──
 let OWNER_PW='twisted123',isAuthed=false,songs=[],curTrack=-1,playing=false,shuf=false,rep=false,muted=false;
 const audio=new Audio();
+audio.crossOrigin='anonymous';
 let views=9360,badgeData=['owner','mod','vip','pro'],volLabel='vol',brightLabel='dim',currentStatus='offline';
 let socialLinks={github:'#',discord:'#',twitter:'#',tiktok:'#'},pendingSongCoverBlob=null,storedAvatarDataUrl='',storedPfpUrl='';
 
@@ -841,12 +842,18 @@ function setupAnalyzer(){
     analyser = audioCtx.createAnalyser();
     analyser.fftSize = 256;
     analyser.smoothingTimeConstant = 0.76;
-    // Simple graph: source → analyser → output
-    // audioSrc can only be created once per audio element
+    // Connect audio to analyser for visualization
+    // If CORS blocks it, audio still plays — visualizer just shows zeros
     if(!audioSrc){
-      audioSrc = audioCtx.createMediaElementSource(audio);
-      audioSrc.connect(analyser);
-      analyser.connect(audioCtx.destination);
+      try{
+        audioSrc = audioCtx.createMediaElementSource(audio);
+        audioSrc.connect(analyser);
+        analyser.connect(audioCtx.destination);
+      }catch(e){
+        // Can't connect cross-origin audio to WebAudio — audio plays fine without it
+        analyser.connect(audioCtx.destination);
+        console.warn('WebAudio visualizer disabled for cross-origin audio');
+      }
     }
     freqData = new Uint8Array(analyser.frequencyBinCount);
     audioReactLoop();
@@ -1497,7 +1504,11 @@ function cloudinaryUpload(file, cloudName, preset, onProgress){
     xhr.onload = () => {
       if(xhr.status === 200){
         const res = JSON.parse(xhr.responseText);
-        resolve(res.secure_url);
+        // Add fl_attachment:false to force proper CORS headers on Cloudinary CDN
+        let url = res.secure_url;
+        // Insert /fl_cors/ into the upload path for proper CORS headers
+        url = url.replace('/upload/', '/upload/fl_cors/');
+        resolve(url);
       } else {
         reject(new Error('Cloudinary error: ' + xhr.status + ' ' + xhr.responseText));
       }
