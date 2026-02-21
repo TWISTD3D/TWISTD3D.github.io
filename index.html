@@ -707,17 +707,17 @@ let mouseX=innerWidth/2,mouseY=innerHeight/2,ringX=mouseX,ringY=mouseY;
 const TRAIL=22,trailDots=[];
 let cursorActive=false;
 for(let i=0;i<TRAIL;i++){const d=document.createElement('div');d.className='trail-dot';const sz=Math.max(1.5,7-i*0.22);d.style.cssText=`width:${sz}px;height:${sz}px;opacity:0;background:#50b4ff`;document.body.appendChild(d);trailDots.push({el:d,x:mouseX,y:mouseY})}
-document.addEventListener('mousemove',e=>{mouseX=e.clientX;mouseY=e.clientY;if(!cursorActive)return;cursorDot.style.left=mouseX+'px';cursorDot.style.top=mouseY+'px';});
+document.addEventListener('mousemove',e=>{mouseX=e.clientX;mouseY=e.clientY;cursorDot.style.left=mouseX+'px';cursorDot.style.top=mouseY+'px';cursorRing.style.left=mouseX+'px';cursorRing.style.top=mouseY+'px';});
 (function loopCursor(){
   ringX+=(mouseX-ringX)*0.1;ringY+=(mouseY-ringY)*0.1;
-  if(cursorActive){
-    cursorRing.style.left=ringX+'px';cursorRing.style.top=ringY+'px';
-    for(let i=TRAIL-1;i>0;i--){trailDots[i].x=trailDots[i-1].x;trailDots[i].y=trailDots[i-1].y}
-    trailDots[0].x=mouseX;trailDots[0].y=mouseY;
-    trailDots.forEach((t,i)=>{t.el.style.opacity=(1-i/TRAIL)*0.55;t.el.style.left=t.x+'px';t.el.style.top=t.y+'px';t.el.style.transform=`translate(-50%,-50%) scale(${Math.max(0.05,1-i*0.045)})`});
-  } else {
-    trailDots.forEach(t=>t.el.style.opacity='0');
-  }
+  cursorRing.style.left=ringX+'px';cursorRing.style.top=ringY+'px';
+  for(let i=TRAIL-1;i>0;i--){trailDots[i].x=trailDots[i-1].x;trailDots[i].y=trailDots[i-1].y}
+  trailDots[0].x=mouseX;trailDots[0].y=mouseY;
+  trailDots.forEach((t,i)=>{
+    t.el.style.left=t.x+'px';t.el.style.top=t.y+'px';
+    t.el.style.transform=`translate(-50%,-50%) scale(${Math.max(0.05,1-i*0.045)})`;
+    t.el.style.opacity=cursorActive?(1-i/TRAIL)*0.55:'0';
+  });
   requestAnimationFrame(loopCursor);
 })();
 
@@ -735,7 +735,7 @@ let socialLinks={github:'#',discord:'#',twitter:'#',tiktok:'#'},pendingSongCover
 
 // ── PALETTE STATE ──
 let pal=[[80,180,255],[56,212,255],[144,220,255]];
-let bgEnergy=0,currentEnergy=0,bassEnergy=0,avgEnergyHist=0.05,lastBeat=0;
+let bgEnergy=0,currentEnergy=0,bassEnergy=0,avgEnergyHist=0.05,lastBeat=0,particleSpeedMult=1.0;
 
 // ── COLOR EXTRACTION ──
 function extractFromDataUrl(dataUrl, cb){
@@ -988,8 +988,8 @@ let bgSmooth=0, bgWave=0, bgFlash=0, bgFrame=0;
 
   // Live palette — read every frame so blobs react instantly to album art changes
   const palRGB=[pal[0]||[80,180,255], pal[1]||[56,212,255], pal[2]||[144,220,255]];
-  const spFast = (0.70 + bgSmooth*0.40 + bgFlash*0.28) * (typeof particleSpeedMult!=='undefined'?particleSpeedMult:1);
-  const spSlow = (0.26 + bgSmooth*0.14 + bgFlash*0.08) * (typeof particleSpeedMult!=='undefined'?particleSpeedMult:1);
+  const spFast = (0.70 + bgSmooth*0.40 + bgFlash*0.28) * particleSpeedMult;
+  const spSlow = (0.26 + bgSmooth*0.14 + bgFlash*0.08) * particleSpeedMult;
 
   // ── T4: AURORA BLOBS ──
   // Each blob smoothly interpolates its own RGB toward its assigned palette color,
@@ -1199,9 +1199,7 @@ function setVol(v){ audio.volume=v/100; muted=v==0; document.getElementById('vol
 function toggleMute(){ muted=!muted; if(muted){audio.volume=0;document.getElementById('vol-sl').value=0;document.getElementById('vol-label').textContent='mute';}else{audio.volume=.7;document.getElementById('vol-sl').value=70;document.getElementById('vol-label').textContent=volLabel;} }
 function seekAudio(e,el){ if(!audio.duration)return; const r=el.querySelector('.prog-track').getBoundingClientRect(); audio.currentTime=((e.clientX-r.left)/r.width)*audio.duration; }
 function setBrightness(v){ /* dim locked — use setParticleSpeed instead */ }
-let particleSpeedMult = 1.0;
 function setParticleSpeed(v){
-  // 0 = frozen, 50 = normal, 100 = fast
   particleSpeedMult = v / 50;
 }
 function fmt(s){ if(!s||isNaN(s))return'0:00'; return Math.floor(s/60)+':'+String(Math.floor(s%60)).padStart(2,'0'); }
