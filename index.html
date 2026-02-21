@@ -857,12 +857,11 @@ function setupAnalyzer(){
 function avgR(s,e){if(!freqData)return 0;let sum=0,n=0;for(let i=s;i<Math.min(e,freqData.length);i++){sum+=freqData[i];n++}return n?sum/n:0}
 function audioReactLoop(){
   requestAnimationFrame(audioReactLoop);
-  if(!analyser||!freqData){
-    // No audio yet — keep bgEnergy gently pulsing so particles still animate
+  if(!analyser||!freqData||!audioCtx){
     bgEnergy = 0;
     return;
   }
-  if(audioCtx.state==='suspended')audioCtx.resume();
+  if(audioCtx.state==='suspended') audioCtx.resume();
   analyser.getByteFrequencyData(freqData);
   const N=freqData.length,bass=avgR(0,5),low=avgR(5,15),mid=avgR(15,40),hi=avgR(40,N);
   const energy=(bass*0.5+low*0.25+mid*0.15+hi*0.1)/255;
@@ -1120,12 +1119,6 @@ function loadTrack(i){
   if(!songs[i]) return;
   curTrack = i;
   const s = songs[i];
-  // crossOrigin must be set BEFORE src for CORS to work
-  if(s.url && s.url.startsWith('http')) {
-    audio.crossOrigin = 'anonymous';
-  } else {
-    audio.removeAttribute('crossorigin');
-  }
   audio.src = s.url;
   audio.volume = Math.max(0, Math.min(1, (document.getElementById('vol-sl').value||70)/100));
   updateTrackUI(s);
@@ -1150,7 +1143,8 @@ function playTrack(i){
   if(!songs[i]) return;
   if(i === curTrack && playing){ audio.currentTime=0; return; }
   loadTrack(i);
-  doPlay();
+  // src just changed — wait for canplay before playing
+  audio.addEventListener('canplay', function onReady(){ audio.removeEventListener('canplay', onReady); doPlay(); }, {once:true});
 }
 
 function togglePlay(){
@@ -1162,7 +1156,12 @@ function togglePlay(){
     updPP();
   } else {
     if(audioCtx && audioCtx.state==='suspended') audioCtx.resume();
-    doPlay();
+    // Wait for audio to be ready before playing
+    if(audio.readyState >= 2){
+      doPlay();
+    } else {
+      audio.addEventListener('canplay', function onReady(){ audio.removeEventListener('canplay', onReady); doPlay(); }, {once:true});
+    }
   }
 }
 
