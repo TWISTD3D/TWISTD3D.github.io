@@ -735,7 +735,8 @@ let socialLinks={github:'#',discord:'#',twitter:'#',tiktok:'#'},pendingSongCover
 
 // ── PALETTE STATE ──
 let pal=[[80,180,255],[56,212,255],[144,220,255]];
-let bgEnergy=0,currentEnergy=0,bassEnergy=0,avgEnergyHist=0.05,lastBeat=0,particleSpeedMult=1.0;
+let bgEnergy=0,currentEnergy=0,bassEnergy=0,avgEnergyHist=0.05,lastBeat=0;
+var particleSpeedMult=1.0;
 
 // ── COLOR EXTRACTION ──
 function extractFromDataUrl(dataUrl, cb){
