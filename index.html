@@ -1387,12 +1387,11 @@ function uploadSongs(e){
   e.target.value='';
 }
 async function fetchTagsFromUrl(url){
-  // Fetch the audio binary then pass it to jsmediatags as a Blob.
-  // This works even when jsmediatags can't read the URL directly (CORS header issues).
   if(typeof jsmediatags === 'undefined') return null;
   try {
-    const res = await fetch(url);
-    if(!res.ok) return null;
+    // Only fetch first 512KB — more than enough for ID3 tags + cover art
+    const res = await fetch(url, { headers: { Range: 'bytes=0-524287' } });
+    if(!res.ok && res.status !== 206) return null;
     const buf = await res.arrayBuffer();
     const blob = new Blob([buf]);
     return await new Promise(resolve => {
@@ -1410,36 +1409,43 @@ async function fetchTagsFromUrl(url){
             });
             fr.readAsDataURL(picBlob);
           } else {
-            resolve({ name: t.title||'', artist: t.artist||'', album: t.album||'', year: t.year ? String(t.year) : '', coverSrc: '' });
+            resolve({
+              name: t.title||'', artist: t.artist||'',
+              album: t.album||'', year: t.year ? String(t.year) : '',
+              coverSrc: ''
+            });
           }
         },
-        onError(){ resolve(null); }
+        onError(e){ console.warn('jsmediatags error for', url, e); resolve(null); }
       });
     });
-  } catch(e){ return null; }
+  } catch(e){ console.warn('fetchTags failed for', url, e); return null; }
 }
 
 async function bulkImportSongs(){
   const ta = document.getElementById('sp-bulkurls');
   const urls = (ta.value||'').split('\n').map(s=>s.trim()).filter(s=>s.startsWith('http'));
   if(!urls.length){ toast('paste at least one URL'); return; }
-  toast('reading metadata for '+urls.length+' songs...');
   const btn = ta.nextElementSibling;
   if(btn) btn.disabled = true;
+  // Remove existing songs that match these URLs so we don't duplicate
+  const urlSet = new Set(urls);
+  songs = songs.filter(s => !urlSet.has(s.url));
   let added = 0;
   for(const url of urls){
+    // Fallback name = catbox hash (e.g. "59sone") — better than the full URL
     const raw = decodeURIComponent(url.split('/').pop().split('?')[0]).replace(/\.[^.]+$/,'');
     const fallbackName = raw || ('Track '+(songs.length+1));
-    // Try to read ID3 tags
+    toast('reading tags '+(added+1)+'/'+urls.length+'...');
     const tags = await fetchTagsFromUrl(url);
+    const name = (tags && tags.name && tags.name.trim()) ? tags.name.trim() : fallbackName;
     const song = {
-      url,
-      b64: '',
-      name:      (tags && tags.name)      || fallbackName,
-      artist:    (tags && tags.artist)    || '',
-      album:     (tags && tags.album)     || '',
-      year:      (tags && tags.year)      || '',
-      coverSrc:  (tags && tags.coverSrc)  || ''
+      url, b64: '',
+      name,
+      artist:   (tags && tags.artist)   || '',
+      album:    (tags && tags.album)    || '',
+      year:     (tags && tags.year)     || '',
+      coverSrc: (tags && tags.coverSrc) || ''
     };
     songs.push(song);
     added++;
@@ -1449,10 +1455,9 @@ async function bulkImportSongs(){
   }
   ta.value = '';
   if(btn) btn.disabled = false;
-  // Push to Firebase — all visitors get these songs
   await saveSongsToIDB();
   await saveToStorage();
-  toast(added+' song'+(added>1?'s':'')+' imported ✓ visible to all');
+  toast(added+' song'+(added>1?'s':'')+' imported ✓ synced globally');
 }
 
 function addSongUrl(){
