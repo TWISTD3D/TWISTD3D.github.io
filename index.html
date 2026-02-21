@@ -159,8 +159,8 @@ try {
   input[type=range].custom-slider::-webkit-slider-thumb{-webkit-appearance:none;width:11px;height:11px;background:var(--accent);border-radius:50%;cursor:none;transition:transform .15s,background 0.8s;box-shadow:0 0 8px rgba(80,180,255,0.45)}
   input[type=range].custom-slider:hover::-webkit-slider-thumb{transform:scale(1.3)}
 
-  #cursor-dot{position:fixed;top:0;left:0;width:7px;height:7px;border-radius:50%;background:var(--accent);pointer-events:none;z-index:9999;transform:translate(-50%,-50%);mix-blend-mode:screen;box-shadow:0 0 8px var(--accent);transition:background 0.4s,box-shadow 0.4s}
-  #cursor-ring{position:fixed;top:0;left:0;width:26px;height:26px;border-radius:50%;border:1.5px solid rgba(80,180,255,0.45);pointer-events:none;z-index:9998;transform:translate(-50%,-50%);transition:border-color 0.4s}
+  #cursor-dot{position:fixed;top:0;left:0;width:7px;height:7px;border-radius:50%;background:var(--accent);pointer-events:none;z-index:9999;transform:translate(-50%,-50%);mix-blend-mode:screen;box-shadow:0 0 8px var(--accent);transition:background 0.4s,box-shadow 0.4s,opacity 0.4s;opacity:0}
+  #cursor-ring{position:fixed;top:0;left:0;width:26px;height:26px;border-radius:50%;border:1.5px solid rgba(80,180,255,0.45);pointer-events:none;z-index:9998;transform:translate(-50%,-50%);transition:border-color 0.4s,opacity 0.4s;opacity:0}
   .trail-dot{position:fixed;pointer-events:none;z-index:9997;border-radius:50%;transform:translate(-50%,-50%);mix-blend-mode:screen}
 
   .overlay-base{position:fixed;inset:0;z-index:50;display:none;align-items:center;justify-content:center;background:rgba(5,7,18,0.78);backdrop-filter:blur(18px)}
@@ -541,7 +541,7 @@ try {
       <div class="song-selector" id="song-selector"></div>
       <div class="sliders-row">
         <div class="slider-group"><span class="slider-label" id="vol-label" onclick="toggleMute()">vol</span><input type="range" class="custom-slider" id="vol-sl" min="0" max="100" value="70" oninput="setVol(this.value)"></div>
-        <div class="slider-group"><span class="slider-label" id="bright-label">dim</span><input type="range" class="custom-slider" id="bright-sl" min="0" max="100" value="50" oninput="setBrightness(this.value)"></div>
+        <div class="slider-group"><span class="slider-label" id="bright-label">speed</span><input type="range" class="custom-slider" id="bright-sl" min="0" max="100" value="50" oninput="setParticleSpeed(this.value)"></div>
       </div>
     </div>
     <div class="presence-section">
@@ -635,7 +635,7 @@ try {
     <div class="sp-section">
       <div class="sp-section-title">Slider Labels</div>
       <div class="icon-edit-row"><span class="icon-edit-label">Volume</span><span class="icon-edit-preview" id="prev-vol">vol</span><input class="icon-edit-input" id="edit-vol-icon" placeholder="vol" maxlength="6" oninput="document.getElementById('prev-vol').textContent=this.value||'vol'"></div>
-      <div class="icon-edit-row"><span class="icon-edit-label">Brightness</span><span class="icon-edit-preview" id="prev-bright">dim</span><input class="icon-edit-input" id="edit-bright-icon" placeholder="dim" maxlength="6" oninput="document.getElementById('prev-bright').textContent=this.value||'dim'"></div>
+      <div class="icon-edit-row"><span class="icon-edit-label">Speed label</span><span class="icon-edit-preview" id="prev-bright">speed</span><input class="icon-edit-input" id="edit-bright-icon" placeholder="speed" maxlength="6" oninput="document.getElementById('prev-bright').textContent=this.value||'speed'"></div>
     </div>
     <div class="sp-section">
       <div class="sp-section-title">Background Video</div>
@@ -697,8 +697,7 @@ try {
       <div class="sp-row"><input class="sp-input" type="password" id="sp-newpw" placeholder="New password..." maxlength="32"><button class="sp-add-btn" onclick="changePw()">set</button></div>
     </div>
     <button class="sp-save" onclick="saveSettings()">save &amp; publish changes</button>
-    <p class="small-note" style="text-align:center;margin-top:8px">changes visible to all visitors</p>
-  </div>
+      </div>
 </div>
 
 <script>
@@ -706,7 +705,7 @@ try {
 const cursorDot=document.getElementById('cursor-dot'),cursorRing=document.getElementById('cursor-ring');
 let mouseX=innerWidth/2,mouseY=innerHeight/2,ringX=mouseX,ringY=mouseY;
 const TRAIL=22,trailDots=[];
-for(let i=0;i<TRAIL;i++){const d=document.createElement('div');d.className='trail-dot';const sz=Math.max(1.5,7-i*0.22);d.style.cssText=`width:${sz}px;height:${sz}px;opacity:0;background:#50b4ff`;document.body.appendChild(d);trailDots.push({el:d,x:mouseX,y:mouseY})}
+for(let i=0;i<TRAIL;i++){const d=document.createElement('div');d.className='trail-dot';const sz=Math.max(1.5,7-i*0.22);d.style.cssText=`width:${sz}px;height:${sz}px;opacity:0;background:#50b4ff;display:none`;document.body.appendChild(d);trailDots.push({el:d,x:mouseX,y:mouseY})}
 document.addEventListener('mousemove',e=>{mouseX=e.clientX;mouseY=e.clientY;cursorDot.style.left=mouseX+'px';cursorDot.style.top=mouseY+'px'});
 (function loopCursor(){ringX+=(mouseX-ringX)*0.1;ringY+=(mouseY-ringY)*0.1;cursorRing.style.left=ringX+'px';cursorRing.style.top=ringY+'px';for(let i=TRAIL-1;i>0;i--){trailDots[i].x=trailDots[i-1].x;trailDots[i].y=trailDots[i-1].y}trailDots[0].x=mouseX;trailDots[0].y=mouseY;trailDots.forEach((t,i)=>{t.el.style.opacity=(1-i/TRAIL)*0.55;t.el.style.left=t.x+'px';t.el.style.top=t.y+'px';t.el.style.transform=`translate(-50%,-50%) scale(${Math.max(0.05,1-i*0.045)})`});requestAnimationFrame(loopCursor)})();
 
@@ -747,11 +746,11 @@ function extractFromDataUrl(dataUrl, cb){
           const mx=Math.max(r,g,b),mn=Math.min(r,g,b);
           const sat=mx>0?(mx-mn)/mx:0,bright=mx/255;
           if(sat<minSat||bright<minBright||bright>maxBright)continue;
-          // Boost dark saturated colors so they show up on dark covers
-          const boostedR=Math.min(255,Math.round(r*1.6));
-          const boostedG=Math.min(255,Math.round(g*1.6));
-          const boostedB=Math.min(255,Math.round(b*1.6));
-          px.push({r:boostedR,g:boostedG,b:boostedB,score:sat*0.7+bright*0.3});
+          // Boost colors hard for vivid palette — dark covers get extra lift
+          const boostedR=Math.min(255,Math.round(r*2.4));
+          const boostedG=Math.min(255,Math.round(g*2.4));
+          const boostedB=Math.min(255,Math.round(b*2.4));
+          px.push({r:boostedR,g:boostedG,b:boostedB,score:sat*0.8+bright*0.2});
         }
         return px;
       }
@@ -783,7 +782,7 @@ function extractFromDataUrl(dataUrl, cb){
   img.src=dataUrl;
 }
 function extractPalette(imgEl){ return null; }
-function pastel([r,g,b],s=0.08){return[Math.round(r*(1-s)+255*s),Math.round(g*(1-s)+255*s),Math.round(b*(1-s)+255*s)]}
+function pastel([r,g,b],s=0.03){return[Math.round(r*(1-s)+255*s),Math.round(g*(1-s)+255*s),Math.round(b*(1-s)+255*s)]}
 function hex([r,g,b]){return'#'+[r,g,b].map(v=>v.toString(16).padStart(2,'0')).join('')}
 
 function applyPalette(raw){
@@ -977,8 +976,8 @@ let bgSmooth=0, bgWave=0, bgFlash=0, bgFrame=0;
 
   // Live palette — read every frame so blobs react instantly to album art changes
   const palRGB=[pal[0]||[80,180,255], pal[1]||[56,212,255], pal[2]||[144,220,255]];
-  const spFast = 0.70 + bgSmooth*0.40 + bgFlash*0.28;
-  const spSlow = 0.26 + bgSmooth*0.14 + bgFlash*0.08;
+  const spFast = (0.70 + bgSmooth*0.40 + bgFlash*0.28) * (typeof particleSpeedMult!=='undefined'?particleSpeedMult:1);
+  const spSlow = (0.26 + bgSmooth*0.14 + bgFlash*0.08) * (typeof particleSpeedMult!=='undefined'?particleSpeedMult:1);
 
   // ── T4: AURORA BLOBS ──
   // Each blob smoothly interpolates its own RGB toward its assigned palette color,
@@ -987,15 +986,15 @@ let bgSmooth=0, bgWave=0, bgFlash=0, bgFrame=0;
   aurora.forEach(p=>{
     // Smooth color toward live palette (drift speed ~0.03 per frame = ~1s to fully shift)
     const [tr,tg,tb]=palRGB[p.ci%3];
-    p.cr += (tr - p.cr) * 0.03;
-    p.cg += (tg - p.cg) * 0.03;
-    p.cb += (tb - p.cb) * 0.03;
+    p.cr += (tr - p.cr) * 0.06;
+    p.cg += (tg - p.cg) * 0.06;
+    p.cb += (tb - p.cb) * 0.06;
     const r=Math.round(p.cr), g=Math.round(p.cg), b=Math.round(p.cb);
 
     // Blob swells with its own freq band
     const be = bandEnergy[p.band] || 0;
-    const breathe = 1 + Math.sin(bgFrame*0.005+p.phase)*0.16 + bgSmooth*0.18 + be*0.55;
-    const alpha   = 0.06 + bgSmooth*0.07 + bgFlash*0.04 + be*0.10;
+    const breathe = 1 + Math.sin(bgFrame*0.005+p.phase)*0.22 + bgSmooth*0.30 + be*0.90;
+    const alpha   = 0.13 + bgSmooth*0.14 + bgFlash*0.08 + be*0.22;
 
     const W=p.rx*breathe, H=p.ry*breathe;
     const grad=ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,W);
@@ -1187,7 +1186,12 @@ function toggleRepeat(){ rep=!rep; document.getElementById('repeat-c').className
 function setVol(v){ audio.volume=v/100; muted=v==0; document.getElementById('vol-label').textContent=v==0?'mute':v<40?'low':volLabel; }
 function toggleMute(){ muted=!muted; if(muted){audio.volume=0;document.getElementById('vol-sl').value=0;document.getElementById('vol-label').textContent='mute';}else{audio.volume=.7;document.getElementById('vol-sl').value=70;document.getElementById('vol-label').textContent=volLabel;} }
 function seekAudio(e,el){ if(!audio.duration)return; const r=el.querySelector('.prog-track').getBoundingClientRect(); audio.currentTime=((e.clientX-r.left)/r.width)*audio.duration; }
-function setBrightness(v){ document.getElementById('bg-overlay').style.opacity=.4+(1-v/100)*.6; }
+function setBrightness(v){ /* dim locked — use setParticleSpeed instead */ }
+let particleSpeedMult = 1.0;
+function setParticleSpeed(v){
+  // 0 = frozen, 50 = normal, 100 = fast
+  particleSpeedMult = v / 50;
+}
 function fmt(s){ if(!s||isNaN(s))return'0:00'; return Math.floor(s/60)+':'+String(Math.floor(s%60)).padStart(2,'0'); }
 
 // Audio events — these are the only reliable way to drive playback
@@ -1769,6 +1773,7 @@ function connectLanyard(){
 
 // ── INIT ──
 try { applyPalette([[80,180,255],[56,212,255],[144,220,255]]); } catch(e) {}
+try { document.getElementById('bg-overlay').style.opacity='0.4'; } catch(e) {}
 try { renderSelector(); } catch(e) {}
 (async()=>{
   try { views++; document.getElementById('view-num').textContent = views.toLocaleString(); } catch(e) {}
@@ -1790,6 +1795,10 @@ let entered = false;
 function enterSite(e){
   if(entered) return;
   entered = true;
+  // Reveal cursor on enter
+  cursorDot.style.opacity='1';
+  cursorRing.style.opacity='1';
+  trailDots.forEach(t=>t.el.style.display='');
   const screen = document.getElementById('enter-screen');
   const cx = e ? e.clientX : innerWidth/2;
   const cy = e ? e.clientY : innerHeight/2;
