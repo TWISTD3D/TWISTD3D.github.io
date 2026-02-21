@@ -648,6 +648,12 @@ try {
       <button class="sp-upload" onclick="document.getElementById('sp-songfiles').click()"><span>upload audio files</span>.mp3 .ogg .wav .m4a</button>
       <input type="file" id="sp-songfiles" accept="audio/*" multiple onchange="uploadSongs(event)">
       <div style="margin-top:12px">
+        <div class="sp-section-title" style="font-size:.5rem;margin-bottom:8px">bulk import from urls</div>
+        <div class="song-add-form" style="margin-bottom:12px">
+          <label class="sp-field-label">paste catbox/external urls — one per line — metadata auto-read</label>
+          <textarea class="sp-input" id="sp-bulkurls" rows="4" placeholder="https://files.catbox.moe/abc.mp3&#10;https://files.catbox.moe/def.mp3" style="resize:vertical;font-size:.7rem;line-height:1.6"></textarea>
+          <button class="sp-add-btn" style="width:100%;margin-top:8px" onclick="bulkImportSongs()">import & read metadata</button>
+        </div>
         <div class="sp-section-title" style="font-size:.5rem;margin-bottom:8px">add song manually</div>
         <div class="song-add-form">
           <div class="song-form-row-with-img">
@@ -1380,6 +1386,76 @@ function uploadSongs(e){
   toast('songs added locally — use catbox URLs for global sharing');
   e.target.value='';
 }
+async function fetchTagsFromUrl(url){
+  return new Promise(resolve => {
+    if(typeof jsmediatags === 'undefined'){ resolve(null); return; }
+    // Try direct read first (works if server allows CORS)
+    function tryRead(src){
+      jsmediatags.read(src, {
+        onSuccess(tag){
+          const t = tag.tags;
+          let cover = null;
+          if(t.picture){
+            const bytes = new Uint8Array(t.picture.data);
+            const blob = new Blob([bytes], {type: t.picture.format||'image/jpeg'});
+            const fr = new FileReader();
+            fr.onload = ev => resolve({
+              name: t.title||'', artist: t.artist||'',
+              album: t.album||'', year: t.year ? String(t.year) : '',
+              coverSrc: ev.target.result
+            });
+            fr.readAsDataURL(blob);
+          } else {
+            resolve({ name: t.title||'', artist: t.artist||'', album: t.album||'', year: t.year ? String(t.year) : '', coverSrc: '' });
+          }
+        },
+        onError(){ resolve(null); }
+      });
+    }
+    // Try via allorigins CORS proxy as fallback
+    const proxied = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url);
+    try { tryRead(proxied); } catch(e){ resolve(null); }
+    // Timeout after 8s
+    setTimeout(() => resolve(null), 8000);
+  });
+}
+
+async function bulkImportSongs(){
+  const ta = document.getElementById('sp-bulkurls');
+  const urls = (ta.value||'').split('\n').map(s=>s.trim()).filter(s=>s.startsWith('http'));
+  if(!urls.length){ toast('paste at least one URL'); return; }
+  toast('reading metadata for '+urls.length+' songs...');
+  const btn = ta.nextElementSibling;
+  if(btn) btn.disabled = true;
+  let added = 0;
+  for(const url of urls){
+    const raw = decodeURIComponent(url.split('/').pop().split('?')[0]).replace(/\.[^.]+$/,'');
+    const fallbackName = raw || ('Track '+(songs.length+1));
+    // Try to read ID3 tags
+    const tags = await fetchTagsFromUrl(url);
+    const song = {
+      url,
+      b64: '',
+      name:      (tags && tags.name)      || fallbackName,
+      artist:    (tags && tags.artist)    || '',
+      album:     (tags && tags.album)     || '',
+      year:      (tags && tags.year)      || '',
+      coverSrc:  (tags && tags.coverSrc)  || ''
+    };
+    songs.push(song);
+    added++;
+    renderSelector();
+    renderSongListSP();
+    if(curTrack === -1) loadTrack(0);
+  }
+  ta.value = '';
+  if(btn) btn.disabled = false;
+  // Push to Firebase — all visitors get these songs
+  await saveSongsToIDB();
+  await saveToStorage();
+  toast(added+' song'+(added>1?'s':'')+' imported ✓ visible to all');
+}
+
 function addSongUrl(){
   const url=document.getElementById('sp-songurl').value.trim();
   if(!url){toast('enter a URL first');return;}
