@@ -1293,7 +1293,8 @@ function openSettings(){
 }
 function closeSettings(){document.getElementById('settings-overlay').classList.remove('open')}
 function saveSettings(){
-  const name=document.getElementById('sp-name').value.trim()||'twistedtbh';
+  try{
+  const name=document.getElementById('sp-name').value.trim()||'user';
   const bio=document.getElementById('sp-bio').value.trim();
   const tab=document.getElementById('sp-tab').value.trim()||name;
   const status=document.getElementById('sp-status').value;
@@ -1309,16 +1310,17 @@ function saveSettings(){
   if(pfpUrlVal){storedPfpUrl=pfpUrlVal;applyPfpUrl(storedPfpUrl);}
   if(nv){volLabel=nv;document.getElementById('vol-label').textContent=nv}
   if(nb){brightLabel=nb;document.getElementById('bright-label').textContent=nb}
-  const gv=id=>{const x=document.getElementById(id).value.trim();return x||'#'};
+  const gv=id=>{const el=document.getElementById(id);return el?el.value.trim()||'#':'#'};
   socialLinks={github:gv('link-github'),discord:gv('link-discord'),twitter:gv('link-twitter'),tiktok:gv('link-tiktok')};
-  ['github','discord','twitter','tiktok'].forEach(k=>document.getElementById('s-'+k).href=socialLinks[k]);
-  applyBadges();
+  ['github','discord','twitter','tiktok'].forEach(k=>{const el=document.getElementById('s-'+k);if(el)el.href=socialLinks[k]});
+  // Don't call applyBadges here — it overwrites badgeData with empty if grid not rendered
+  renderBadgesOnCard();
   const sc={offline:'#f0a8b4',online:'#a8f0c6',dnd:'#f0d8a0'};const col=sc[status]||'#f0a8b4';
   currentStatus=status;document.getElementById('status-dot').style.background=col;document.getElementById('status-dot2').style.background=col;
   document.getElementById('status-text-el').textContent=status==='dnd'?'do not disturb':status;
   if(bgurl)setVideo(bgurl);
-  views+=Math.floor(Math.random()*10)+1;document.getElementById('view-num').textContent=views.toLocaleString();
-  saveToStorage();closeSettings();toast('saved & published');
+  saveToStorage();closeSettings();toast('saved ✓');
+  }catch(err){console.error('saveSettings error:',err);toast('save error: '+err.message);}
 }
 function setVideo(url){const v=document.getElementById('bg-video');v.src=url;v.style.display='block';bgActive=false;canvas.style.display='none'}
 function uploadBg(e){const f=e.target.files[0];if(!f)return;setVideo(URL.createObjectURL(f));toast('video background set')}
