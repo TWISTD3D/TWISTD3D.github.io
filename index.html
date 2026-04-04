@@ -1726,9 +1726,9 @@ window.applyProfileData = function applyProfileData(d){
       url: s.url, b64:'', name: s.name||'', artist: s.artist||'',
       album: s.album||'', year: s.year||'', coverSrc: s.coverSrc||''
     }));
-    renderSelector();
+renderSelector();
     // Just update UI — don't set audio.src yet (mobile blocks it before user gesture)
-    if(!playing && curTrack === -1){
+    if(!playing && curTrack === -1 && songs.length > 0){
       updateTrackUI(songs[0]);
       updateAlbumDisplay(songs[0]);
     }
